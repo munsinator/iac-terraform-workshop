@@ -2,9 +2,7 @@
 # The provider block is used to let Terraform which provider to use.
 # In this case, we are using the AWS provider and specifying the region as "us-east-1".
 # Credentials are set as environment variables in the shell and managed by AWS CLI.
-provider "aws" {
-  region = "us-east-1"
-}
+provider "aws" {}
 
 # Now we are using th existing VPC and managing its settings.
 # In this case, are giving it a name.
