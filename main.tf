@@ -21,16 +21,31 @@ resource "aws_security_group" "terraform-ws-1" {
 
   # Incoming traffic
   ingress {
+    from_port = 22
+    to_port   = 22
+    protocol  = "tcp"
+    #prefix_list_ids = [data.aws_ec2_managed_prefix_list.instance_connect.id]
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+  ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
   }
+
   # Outgoing traffic
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
   }
+}
+
+# We need this block to be able to use EC2 Instance Connect to connect to the instance we are creating.
+data "aws_ec2_managed_prefix_list" "instance_connect" {
+  name = "com.amazonaws.us-east-1.ec2-instance-connect"
 }
 
 # This data block is used to fetch the latest Ubuntu AMI from AWS.
