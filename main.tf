@@ -115,14 +115,47 @@ resource "aws_instance" "web_server" {
   # The instance type is set to "t2.micro" which is free.
   instance_type               = "t2.micro"
   # The security group we created earlier is associated with this instance.
-  vpc_security_group_ids      = [aws_security_group.terraform-ws-1.id]
+  # vpc_security_group_ids      = [aws_security_group.terraform-ws-1.id]
   # Here we are associating a public IP address with the instance so that it can be accessed from the internet.
-  associate_public_ip_address = true
+  # associate_public_ip_address = true
+
+  # Connects the EC2 instance to the network interface we created earlier. This is necessary because we are using a custom VPC and a public subnet.
+  network_interface {
+    network_interface_id = aws_network_interface.web.id
+    device_index         = 0
+  }
 
   # The user data needed to install Apache on the instance
   user_data = file("./install_apache.sh")
 
+  depends_on = [
+    aws_eip.webserver,
+    aws_route_table_association.public
+  ]
+
   tags = {
     Name = "webserver"
+  }
+}
+
+# Now we are creating a network interface and associating it with the public subnet.
+resource "aws_network_interface" "web" {
+  subnet_id       = aws_subnet.public.id
+  security_groups = [aws_security_group.terraform-ws-1.id]
+
+  tags = {
+    Name = "workshop-web-interface"
+  }
+}
+
+# Now we are creating an Elastic IP and associating it with the ENI.
+resource "aws_eip" "webserver" {
+  domain                    = "vpc"
+  network_interface         = aws_network_interface.web.id
+
+  depends_on = [aws_internet_gateway.tf-igw]
+
+  tags = {
+    Name = "tf-workshop-web-eip"
   }
 }
