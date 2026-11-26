@@ -1,10 +1,9 @@
 # Author: Your Name
 # The provider block is used to let Terraform which provider to use.
-# In this case, we are using the AWS provider and specifying the region as "us-east-1".
-# Credentials are set as environment variables in the shell and managed by AWS CLI.
+# Credentials & region are set as environment variables in the shell and managed by AWS CLI.
 provider "aws" {}
 
-# Now we are using th existing VPC and managing its settings.
+# Now we are using the existing VPC and managing its settings.
 # In this case, are giving it a name.
 resource "aws_default_vpc" "default" {
   tags = {
@@ -12,12 +11,61 @@ resource "aws_default_vpc" "default" {
   }
 }
 
+# Creating a new "custom" VPC
+resource "aws_vpc" "tf-workshop-vpc" {
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    Name = "tf-workshop-VPC"
+  }
+}
+
+# Now we are creating an internet gateway and associating it with the VPC we created earlier.
+resource "aws_internet_gateway" "tf-igw" {
+  vpc_id = aws_vpc.tf-workshop-vpc.id
+
+  tags = {
+    Name = "tf-igw"
+  }
+}
+
+# Now we are creating a route table and associating it with the VPC we created earlier.
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.tf-workshop-vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.tf-igw.id
+  }
+
+  tags = {
+    Name = "workshop-public-routes"
+  }
+}
+
+# Now we are creating just one public subnet in the VPC we created earlier.
+
+resource "aws_subnet" "public" {
+  vpc_id            = aws_vpc.tf-workshop-vpc.id
+  cidr_block        = "10.0.1.0/24"
+  availability_zone = "us-east-1a"
+
+  tags = {
+    Name = "workshop-public-subnet"
+  }
+}
+
+# Now we are creating a route table and associating it with the public subnet we created earlier.
+resource "aws_route_table_association" "public" {
+  subnet_id      = aws_subnet.public.id
+  route_table_id = aws_route_table.public.id
+}
+
 # Now we create a security group that allows inbound traffic on port 80 (HTTP) 
 # and allows all outbound traffic. 
 resource "aws_security_group" "terraform-ws-1" {
   name        = "workshop-1"
-  # The security group is associated with the default VPC we created earlier.
-  vpc_id      = aws_default_vpc.default.id
+  # The security group is associated with the default VPC we created earlier. For part 2: we switched to the custom VPC.
+  vpc_id      = aws_vpc.tf-workshop-vpc.id
 
   # Incoming traffic
   ingress {
@@ -60,7 +108,7 @@ data "aws_ami" "ubuntu" {
   }
 }
 
-# Now wwe create an EC2 instance using the Ubuntu AMI we fetched earlier.
+# Now we create an EC2 instance using the Ubuntu AMI we fetched earlier.
 # The instance type is set to "t2.micro" which is eligible for the free tier.
 resource "aws_instance" "web_server" {
   ami                         = data.aws_ami.ubuntu.id
@@ -72,14 +120,7 @@ resource "aws_instance" "web_server" {
   associate_public_ip_address = true
 
   # The user data needed to install Apache on the instance
-  user_data = <<-EOF
-              #!/bin/bash
-              sudo apt update -y
-              sudo apt install apache2 -y
-              sudo systemctl start apache2
-              sudo systemctl enable apache2
-              echo "<h1>Hello World</h1>" | sudo tee /var/www/html/index.html
-  EOF
+  user_data = file("./install_apache.sh")
 
   tags = {
     Name = "webserver"
