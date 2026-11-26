@@ -159,3 +159,15 @@ resource "aws_eip" "webserver" {
     Name = "tf-workshop-web-eip"
   }
 }
+
+# Creating outputs to display the public IP address of the web server and the URL of the website.
+# The output will be seen in the terminal after running `terraform apply`.
+output "public_ip" {
+  description = "Public IP web server"
+  value       = aws_eip.webserver.public_ip
+}
+
+output "website_url" {
+  description = "URL"
+  value       = "http://${aws_eip.webserver.public_ip}"
+}
